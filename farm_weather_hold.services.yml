@@ -21,3 +21,6 @@ services:
       - '@http_client'
       - '@cache.default'
       - '@datetime.time'
+
+  farm_weather_hold.defer_calculator:
+    class: Drupal\farm_weather_hold\DeferCalculator
