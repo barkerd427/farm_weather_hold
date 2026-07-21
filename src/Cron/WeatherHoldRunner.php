@@ -11,6 +11,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\State\StateInterface;
 use Drupal\farm_weather_hold\CoordinatesResolver;
+use Drupal\farm_weather_hold\DeferCalculator;
 use Drupal\farm_weather_hold\FarmCoordinates;
 use Drupal\farm_weather_hold\WeatherProviderInterface;
 
@@ -36,6 +37,7 @@ final class WeatherHoldRunner {
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly WeatherProviderInterface $weatherProvider,
     private readonly CoordinatesResolver $coordinatesResolver,
+    private readonly DeferCalculator $deferCalculator,
     private readonly LoggerChannelFactoryInterface $loggerFactory,
   ) {}
 
@@ -148,9 +150,85 @@ final class WeatherHoldRunner {
   }
 
   /**
-   * Rule 2: defer coming-due logs past forecast rain. Implemented in Task 6.
+   * Rule 2: defer coming-due logs past forecast rain, capped per log.
    */
   private function forecastDefer(ImmutableConfig $config, FarmCoordinates $coords, array $tids, int $now): void {
+    $lookaheadHours = (int) $config->get('lookahead_hours');
+    $ids = $this->entityTypeManager->getStorage('log')->getQuery()
+      ->accessCheck(FALSE)
+      ->condition('status', 'pending')
+      ->condition('category', $tids, 'IN')
+      ->condition('timestamp', $now + self::DUE_WINDOW, '>')
+      ->condition('timestamp', $now + $lookaheadHours * 3600, '<=')
+      ->sort('timestamp', 'ASC')
+      ->execute();
+    if ($ids === []) {
+      return;
+    }
+    $forecast = $this->weatherProvider->rainForecast($coords, $lookaheadHours);
+    if ($forecast->rainEnd === NULL
+      || $forecast->totalInches < (float) $config->get('forecast_threshold_in')
+      || $forecast->maxProbabilityPercent < (int) $config->get('forecast_probability')) {
+      return;
+    }
+    $tz = new \DateTimeZone($coords->timezone);
+    $maxDefers = (int) $config->get('max_defers');
+    $storage = $this->entityTypeManager->getStorage('log');
+    foreach ($storage->loadMultiple($ids) as $log) {
+      $deferCount = (int) ($this->weatherHoldData($log)['defer_count'] ?? 0);
+      if ($deferCount >= $maxDefers) {
+        // Cap reached: leave the log due and let the human decide.
+        continue;
+      }
+      $newTimestamp = $this->deferCalculator->deferredTimestamp(
+        (int) $log->get('timestamp')->value,
+        $forecast->rainEnd,
+        $tz,
+      );
+      if ($newTimestamp <= (int) $log->get('timestamp')->value) {
+        // Rain ends before the log was due anyway; deferring would move it
+        // earlier. Leave it — rule 1 will evaluate it when it comes due.
+        continue;
+      }
+      $log->set('timestamp', $newTimestamp);
+      $rainByDate = $forecast->rainEnd->setTimezone($tz)->format('Y-m-d');
+      $this->appendNote($log, sprintf(
+        'Deferred — %.2f in forecast by %s (farm_weather_hold)',
+        $forecast->totalInches,
+        $rainByDate,
+      ));
+      $this->mergeWeatherHoldData($log, [
+        'action' => 'deferred',
+        'reason' => 'forecast_rain',
+        'rain_in' => round($forecast->totalInches, 2),
+        'rain_by' => $rainByDate,
+        'defer_count' => $deferCount + 1,
+        'checked' => $this->isoNow($now, $coords),
+      ]);
+      $log->setNewRevision(TRUE);
+      $log->save();
+      $this->loggerFactory->get('farm_weather_hold')
+        ->info('Deferred log @id (@label) to @date: @rain in forecast.', [
+          '@id' => $log->id(),
+          '@label' => $log->label(),
+          '@date' => $rainByDate,
+          '@rain' => round($forecast->totalInches, 2),
+        ]);
+    }
+  }
+
+  /**
+   * The existing weather_hold block from a log's data field, or [].
+   */
+  private function weatherHoldData(object $log): array {
+    $raw = $log->get('data')->value;
+    if ($raw === NULL || $raw === '') {
+      return [];
+    }
+    $decoded = json_decode($raw, TRUE);
+    return is_array($decoded) && is_array($decoded['weather_hold'] ?? NULL)
+      ? $decoded['weather_hold']
+      : [];
   }
 
   /**

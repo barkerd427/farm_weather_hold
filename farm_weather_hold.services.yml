@@ -8,6 +8,7 @@ services:
       - '@entity_type.manager'
       - '@farm_weather_hold.weather_provider'
       - '@farm_weather_hold.coordinates_resolver'
+      - '@farm_weather_hold.defer_calculator'
       - '@logger.factory'
 
   farm_weather_hold.coordinates_resolver:
