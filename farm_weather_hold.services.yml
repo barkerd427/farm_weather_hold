@@ -5,6 +5,10 @@ services:
       - '@state'
       - '@datetime.time'
       - '@config.factory'
+      - '@entity_type.manager'
+      - '@farm_weather_hold.weather_provider'
+      - '@farm_weather_hold.coordinates_resolver'
+      - '@logger.factory'
 
   farm_weather_hold.coordinates_resolver:
     class: Drupal\farm_weather_hold\CoordinatesResolver
