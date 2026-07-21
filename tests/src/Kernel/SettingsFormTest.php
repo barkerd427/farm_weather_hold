@@ -20,7 +20,10 @@ class SettingsFormTest extends FarmWeatherHoldKernelTestBase {
    * Submitting the form persists all settings.
    */
   public function testSubmitPersistsSettings(): void {
+    $formObject = SettingsForm::create($this->container);
+    $form = [];
     $form_state = new FormState();
+    $built = $formObject->buildForm($form, $form_state);
     $form_state->setValues([
       'categories' => 'irrigation, foliar feed',
       'trailing_enabled' => 0,
@@ -34,7 +37,7 @@ class SettingsFormTest extends FarmWeatherHoldKernelTestBase {
       'latitude' => '43.2',
       'longitude' => '-71.5',
     ]);
-    $this->container->get('form_builder')->submitForm(SettingsForm::class, $form_state);
+    $formObject->submitForm($built, $form_state);
 
     $config = $this->config('farm_weather_hold.settings');
     $this->assertSame(['irrigation', 'foliar feed'], $config->get('categories'));
