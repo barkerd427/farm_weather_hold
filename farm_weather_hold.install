@@ -1,0 +1,23 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for farm_weather_hold.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_uninstall().
+ *
+ * Removes the module's State entries (throttle watermark).
+ */
+function farm_weather_hold_uninstall(): void {
+  $keys = array_filter(
+    array_keys(\Drupal::keyValue('state')->getAll()),
+    static fn (string $key): bool => str_starts_with($key, 'farm_weather_hold.'),
+  );
+  if ($keys !== []) {
+    \Drupal::state()->deleteMultiple($keys);
+  }
+}
