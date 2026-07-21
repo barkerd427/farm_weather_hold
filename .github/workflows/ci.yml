@@ -31,7 +31,11 @@ jobs:
           composer config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
           composer config --no-plugins allow-plugins.phpstan/extension-installer true
           composer install --no-interaction
-          composer require drupal/farm --with-all-dependencies --no-interaction
+          # The kernel tests only enable core + drupal/log (+ its state_machine
+          # and entity deps) + a local test module that supplies the farmOS-style
+          # base fields; no farm_* module is ever enabled, so full farmOS
+          # (farmos/farmos) is not required and would not resolve on plain core.
+          composer require 'drupal/log:^3' --with-all-dependencies --no-interaction
           composer require --dev drupal/core-dev:^11 drupal/coder mglaman/phpstan-drupal phpstan/extension-installer --no-interaction
           git clone --depth 1 https://github.com/barkerd427/farm_digest.git web/modules/contrib/farm_digest
           ln -s "$GITHUB_WORKSPACE/farm_weather_hold" web/modules/contrib/farm_weather_hold
