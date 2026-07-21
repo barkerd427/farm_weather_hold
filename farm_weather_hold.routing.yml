@@ -1,0 +1,7 @@
+farm_weather_hold.settings:
+  path: '/admin/config/farm/weather-hold'
+  defaults:
+    _form: '\Drupal\farm_weather_hold\Form\SettingsForm'
+    _title: 'Farm Weather Hold'
+  requirements:
+    _permission: 'administer farm settings'

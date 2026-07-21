@@ -1,0 +1,5 @@
+farm_weather_hold.settings:
+  title: 'Farm Weather Hold'
+  description: 'Configure weather-aware completion and deferral of pending logs.'
+  parent: system.admin_config
+  route_name: farm_weather_hold.settings
