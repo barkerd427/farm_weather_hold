@@ -1,0 +1,7 @@
+services:
+  farm_weather_hold.runner:
+    class: Drupal\farm_weather_hold\Cron\WeatherHoldRunner
+    arguments:
+      - '@state'
+      - '@datetime.time'
+      - '@config.factory'

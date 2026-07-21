@@ -1,0 +1,40 @@
+farm_weather_hold.settings:
+  type: config_object
+  label: 'Farm Weather Hold settings'
+  mapping:
+    categories:
+      type: sequence
+      label: 'Log category term names to watch'
+      sequence:
+        type: string
+        label: 'Term name'
+    trailing_enabled:
+      type: boolean
+      label: 'Enable trailing-rain skip'
+    trailing_threshold_in:
+      type: float
+      label: 'Trailing rain threshold (inches)'
+    lookback_days:
+      type: integer
+      label: 'Trailing rain lookback (days)'
+    forecast_enabled:
+      type: boolean
+      label: 'Enable forecast defer'
+    forecast_threshold_in:
+      type: float
+      label: 'Forecast rain threshold (inches)'
+    forecast_probability:
+      type: integer
+      label: 'Forecast probability threshold (%)'
+    lookahead_hours:
+      type: integer
+      label: 'Forecast look-ahead horizon (hours)'
+    max_defers:
+      type: integer
+      label: 'Maximum defers per log'
+    latitude:
+      type: float
+      label: 'Farm latitude'
+    longitude:
+      type: float
+      label: 'Farm longitude'

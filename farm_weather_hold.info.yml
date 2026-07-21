@@ -1,0 +1,11 @@
+name: 'Farm Weather Hold'
+description: 'Completes or defers pending categorized logs automatically based on trailing and forecast rainfall.'
+type: module
+package: farmOS Contrib
+core_version_requirement: ^11
+configure: farm_weather_hold.settings
+dependencies:
+  - 'log:log'
+  - 'farm:farm_entity_fields'
+  - 'farm:farm_log_category'
+  - 'farm:farm_setup'

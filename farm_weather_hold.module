@@ -1,0 +1,32 @@
+<?php
+
+/**
+ * @file
+ * Farm Weather Hold: weather-aware completion and deferral of pending logs.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function farm_weather_hold_help(string $route_name, RouteMatchInterface $route_match): string {
+  if ($route_name !== 'help.page.farm_weather_hold') {
+    return '';
+  }
+  $output = '<h2>' . t('About') . '</h2>';
+  $output .= '<p>' . t('Farm Weather Hold makes pending categorized logs weather-aware: tasks that rain has already done are marked done automatically, and tasks that forecast rain is about to do are deferred until after the rain — instead of nagging the assignee.') . '</p>';
+  $output .= '<h2>' . t('Configuration') . '</h2>';
+  $output .= '<p>' . t('Settings: <code>/admin/config/farm/weather-hold</code>') . '</p>';
+  $output .= '<p>' . t('Evaluation runs on cron, throttled to once per hour.') . '</p>';
+  return $output;
+}
+
+/**
+ * Implements hook_cron().
+ */
+function farm_weather_hold_cron(): void {
+  \Drupal::service('farm_weather_hold.runner')->run();
+}

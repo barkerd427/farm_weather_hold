@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<ruleset name="farm_weather_hold">
+  <description>PHP CodeSniffer configuration for the farm_weather_hold module.</description>
+  <file>.</file>
+  <exclude-pattern>*/vendor/*</exclude-pattern>
+  <exclude-pattern>*/docs/*</exclude-pattern>
+  <arg name="extensions" value="php,module,install,theme"/>
+  <rule ref="Drupal"/>
+  <rule ref="DrupalPractice"/>
+</ruleset>

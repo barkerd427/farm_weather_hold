@@ -1,0 +1,7 @@
+parameters:
+  level: 5
+  paths:
+    - src
+    - tests
+    - farm_weather_hold.module
+    - farm_weather_hold.install

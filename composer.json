@@ -1,0 +1,10 @@
+{
+    "name": "drupal/farm_weather_hold",
+    "description": "Completes or defers pending categorized logs automatically based on trailing and forecast rainfall.",
+    "type": "drupal-module",
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://www.drupal.org/project/farm_weather_hold",
+    "require": {
+        "php": ">=8.3"
+    }
+}
