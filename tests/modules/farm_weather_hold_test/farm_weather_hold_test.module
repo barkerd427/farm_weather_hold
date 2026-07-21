@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * @file
+ * Test module for farm_weather_hold kernel tests.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Field\FieldStorageDefinitionInterface;
+
+/**
+ * Implements hook_entity_base_field_info().
+ *
+ * Replicates the farmOS log base fields this module relies on (category from
+ * farm_log_category; notes/data from farm_entity_fields; owner from
+ * farm_owner) so kernel tests run without the farm profile.
+ */
+function farm_weather_hold_test_entity_base_field_info(EntityTypeInterface $entity_type): array {
+  $fields = [];
+  if ($entity_type->id() === 'log') {
+    $fields['category'] = BaseFieldDefinition::create('entity_reference')
+      ->setLabel(t('Log category'))
+      ->setRevisionable(TRUE)
+      ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED)
+      ->setSetting('target_type', 'taxonomy_term')
+      ->setSetting('handler', 'default:taxonomy_term')
+      ->setSetting('handler_settings', [
+        'target_bundles' => ['log_category' => 'log_category'],
+        'sort' => ['field' => 'name', 'direction' => 'asc'],
+        'auto_create' => FALSE,
+        'auto_create_bundle' => '',
+      ]);
+    $fields['notes'] = BaseFieldDefinition::create('text_long')
+      ->setLabel(t('Notes'))
+      ->setRevisionable(TRUE);
+    $fields['data'] = BaseFieldDefinition::create('string_long')
+      ->setLabel(t('Data'))
+      ->setRevisionable(TRUE);
+    $fields['owner'] = BaseFieldDefinition::create('entity_reference')
+      ->setLabel(t('Owner'))
+      ->setSetting('target_type', 'user')
+      ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
+  }
+  return $fields;
+}

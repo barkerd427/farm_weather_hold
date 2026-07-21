@@ -1,0 +1,8 @@
+name: 'Farm Weather Hold Test'
+type: module
+package: Testing
+core_version_requirement: ^10.3 || ^11
+dependencies:
+  - log:log
+  - drupal:taxonomy
+  - drupal:user
