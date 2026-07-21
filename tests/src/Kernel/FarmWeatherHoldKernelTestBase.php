@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\farm_weather_hold\Kernel;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\log\Entity\LogType;
 use Drupal\taxonomy\Entity\Term;
@@ -113,7 +114,7 @@ abstract class FarmWeatherHoldKernelTestBase extends KernelTestBase {
    * Freezes datetime.time at a fixed request time.
    */
   protected function setFrozenTime(int $timestamp): void {
-    $time = $this->createMock(\Drupal\Component\Datetime\TimeInterface::class);
+    $time = $this->createMock(TimeInterface::class);
     $time->method('getRequestTime')->willReturn($timestamp);
     $time->method('getCurrentTime')->willReturn($timestamp);
     $this->container->set('datetime.time', $time);

@@ -74,8 +74,10 @@ class BustedForecastTest extends FarmWeatherHoldKernelTestBase {
   }
 
   /**
-   * Defer, then the forecast busts: the log comes due and is left for the
-   * human, and once they mark it done the module never touches it again.
+   * Defer, then the forecast busts.
+   *
+   * The log comes due and is left for the human, and once they mark it done
+   * the module never touches it again.
    */
   public function testDeferThenBustLeavesLogDue(): void {
     $log = $this->createLog([

@@ -9,7 +9,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 /**
  * Resolves the farm's coordinates and timezone.
  *
- * farmOS stores no site-wide farm coordinate, so lat/lon come from module
+ * FarmOS stores no site-wide farm coordinate, so lat/lon come from module
  * config; the timezone comes from the site (system.date), falling back to
  * America/New_York.
  */
