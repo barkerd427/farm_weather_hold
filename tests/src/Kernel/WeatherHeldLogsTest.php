@@ -81,6 +81,24 @@ class WeatherHeldLogsTest extends FarmWeatherHoldKernelTestBase {
       'owner' => [(int) $other->id()],
       'data' => '{"weather_hold":{"action":"skipped","rain_in":1.4,"window_days":7}}',
     ]);
+    // Noise: same owner, valid weather_hold payload, but its 'changed'
+    // timestamp is forced outside the window (before window->start) — this
+    // is the only fixture that actually exercises the query's changed
+    // bounds; every other exclusion above is for an unrelated reason.
+    $outOfWindow = $this->createLog([
+      'name' => 'Held log outside the lookback window',
+      'timestamp' => $now - 3600,
+      'status' => 'done',
+      'category' => [$this->irrigationTerm->id()],
+      'owner' => [$uid],
+      'data' => '{"weather_hold":{"action":"skipped","reason":"trailing_rain","rain_in":1.4,"window_days":7,"checked":"2026-07-21T10:00:00-04:00"}}',
+    ]);
+    $outOfWindow->set('changed', $now - 7200);
+    $outOfWindow->save();
+    $outOfWindow = $this->container->get('entity_type.manager')->getStorage('log')->loadUnchanged($outOfWindow->id());
+    // Guard: confirm the forced 'changed' value actually persisted before
+    // relying on it to prove the window boundary excludes it.
+    $this->assertSame($now - 7200, (int) $outOfWindow->get('changed')->value);
 
     $window = new DigestWindow($now - 3600, $now + 10, 'lookback');
     $query = new DigestQuery($window, [], 'owner');
@@ -98,6 +116,10 @@ class WeatherHeldLogsTest extends FarmWeatherHoldKernelTestBase {
     // Both logs share the same 'changed' second, so relative order under
     // the changed ASC sort is not guaranteed — compare as a set.
     $this->assertEqualsCanonicalizing([(int) $skipped->id(), (int) $deferred->id()], array_map(
+      static fn (object $item): int => $item->entityId,
+      $items,
+    ));
+    $this->assertNotContains((int) $outOfWindow->id(), array_map(
       static fn (object $item): int => $item->entityId,
       $items,
     ));
