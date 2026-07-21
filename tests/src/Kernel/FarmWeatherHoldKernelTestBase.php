@@ -100,4 +100,25 @@ abstract class FarmWeatherHoldKernelTestBase extends KernelTestBase {
     return $log;
   }
 
+  /**
+   * Replaces the weather provider with a settable test double.
+   */
+  protected function setWeather(TestWeatherProvider $provider): void {
+    $this->container->set('farm_weather_hold.weather_provider', $provider);
+    // Force runner re-instantiation with the replaced provider.
+    $this->container->set('farm_weather_hold.runner', NULL);
+  }
+
+  /**
+   * Freezes datetime.time at a fixed request time.
+   */
+  protected function setFrozenTime(int $timestamp): void {
+    $time = $this->createMock(\Drupal\Component\Datetime\TimeInterface::class);
+    $time->method('getRequestTime')->willReturn($timestamp);
+    $time->method('getCurrentTime')->willReturn($timestamp);
+    $this->container->set('datetime.time', $time);
+    $this->container->set('farm_weather_hold.runner', NULL);
+    $this->container->set('farm_weather_hold.weather_provider', NULL);
+  }
+
 }

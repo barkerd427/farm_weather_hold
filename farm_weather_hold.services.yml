@@ -5,3 +5,15 @@ services:
       - '@state'
       - '@datetime.time'
       - '@config.factory'
+
+  farm_weather_hold.coordinates_resolver:
+    class: Drupal\farm_weather_hold\CoordinatesResolver
+    arguments:
+      - '@config.factory'
+
+  farm_weather_hold.weather_provider:
+    class: Drupal\farm_weather_hold\OpenMeteoWeatherProvider
+    arguments:
+      - '@http_client'
+      - '@cache.default'
+      - '@datetime.time'
