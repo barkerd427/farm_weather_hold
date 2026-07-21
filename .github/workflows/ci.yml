@@ -37,8 +37,8 @@ jobs:
           ln -s "$GITHUB_WORKSPACE/farm_weather_hold" web/modules/contrib/farm_weather_hold
 
       - name: PHPCS
-        working-directory: site/web/modules/contrib/farm_weather_hold
-        run: ../../../../vendor/bin/phpcs -s
+        working-directory: site
+        run: vendor/bin/phpcs -s -p --standard=web/modules/contrib/farm_weather_hold/phpcs.xml.dist web/modules/contrib/farm_weather_hold
 
       - name: PHPStan
         working-directory: site
