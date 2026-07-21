@@ -14,3 +14,5 @@ All notable changes to this project are documented here.
 - Admin settings form at `/admin/config/farm/weather-hold`.
 - "Handled by weather" farm_digest category (soft dependency).
 - GPL-2.0 LICENSE.txt, phpcs.xml.dist, phpstan.neon.dist, GitHub Actions CI.
+- `core_version_requirement: ^10.3 || ^11` — installs on Drupal 10.3+ as well
+  as Drupal 11 (no Drupal-11-only API is used).

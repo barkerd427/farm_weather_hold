@@ -6,7 +6,7 @@ deferred automatically instead of nagging the assignee.
 
 ## Requirements
 
-- Drupal `^11`, PHP 8.3+, and farmOS (`farm_log_category` provides the log
+- Drupal `^10.3 || ^11`, PHP 8.3+, and farmOS (`farm_log_category` provides the log
   category field used to identify watched logs; `farm_setup` provides the
   "administer farm settings" permission used by the admin UI).
 - Open-Meteo is used as the weather source, with no API key required.

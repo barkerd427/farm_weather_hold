@@ -2,7 +2,7 @@ name: 'Farm Weather Hold'
 description: 'Completes or defers pending categorized logs automatically based on trailing and forecast rainfall.'
 type: module
 package: farmOS Contrib
-core_version_requirement: ^11
+core_version_requirement: ^10.3 || ^11
 configure: farm_weather_hold.settings
 dependencies:
   - 'log:log'
