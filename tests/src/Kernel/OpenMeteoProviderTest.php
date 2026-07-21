@@ -6,9 +6,11 @@ namespace Drupal\Tests\farm_weather_hold\Kernel;
 
 use Drupal\farm_weather_hold\FarmCoordinates;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
@@ -132,6 +134,81 @@ class OpenMeteoProviderTest extends FarmWeatherHoldKernelTestBase {
     $provider->trailingRainInches($coords, 7);
     $provider->trailingRainInches($coords, 7);
     $this->assertCount(1, $this->requests);
+  }
+
+  /**
+   * A hard-failing HTTP request returns empty results, not an exception.
+   */
+  public function testFetchFailureReturnsEmptyResults(): void {
+    $mock = new MockHandler([
+      new ConnectException(
+        'timeout',
+        new Request('GET', 'test'),
+      ),
+      new ConnectException(
+        'timeout',
+        new Request('GET', 'test'),
+      ),
+    ]);
+    $stack = HandlerStack::create($mock);
+    $stack->push(Middleware::history($this->requests));
+    $this->container->set('http_client', new Client(['handler' => $stack]));
+    $this->container->set('farm_weather_hold.weather_provider', NULL);
+
+    $coords = new FarmCoordinates(42.5, -72.5, 'America/New_York');
+    $provider = $this->container->get('farm_weather_hold.weather_provider');
+
+    $this->assertSame(0.0, $provider->trailingRainInches($coords, 7));
+
+    $forecast = $provider->rainForecast($coords, 48);
+    $this->assertSame(0.0, $forecast->totalInches);
+    $this->assertNull($forecast->rainEnd);
+  }
+
+  /**
+   * A failed fetch is not cached: the next call retries the request.
+   */
+  public function testFailedFetchIsNotCached(): void {
+    $mock = new MockHandler([
+      new ConnectException(
+        'timeout',
+        new Request('GET', 'test'),
+      ),
+      new ConnectException(
+        'timeout',
+        new Request('GET', 'test'),
+      ),
+    ]);
+    $stack = HandlerStack::create($mock);
+    $stack->push(Middleware::history($this->requests));
+    $this->container->set('http_client', new Client(['handler' => $stack]));
+    $this->container->set('farm_weather_hold.weather_provider', NULL);
+
+    $coords = new FarmCoordinates(42.5, -72.5, 'America/New_York');
+    $provider = $this->container->get('farm_weather_hold.weather_provider');
+    $provider->trailingRainInches($coords, 7);
+    $provider->trailingRainInches($coords, 7);
+    $this->assertCount(2, $this->requests);
+  }
+
+  /**
+   * A five-day horizon requests six forecast days (ceil(120/24)+1 = 6).
+   */
+  public function testForecastDaysScalesWithLookaheadHours(): void {
+    $this->setFrozenTime(1784638800);
+    $this->mockHttp([
+      [
+        'hourly' => [
+          'time' => ['2026-07-21T10:00'],
+          'precipitation' => [0.0],
+          'precipitation_probability' => [10],
+        ],
+      ],
+    ]);
+    $coords = new FarmCoordinates(42.5, -72.5, 'America/New_York');
+    $this->container->get('farm_weather_hold.weather_provider')->rainForecast($coords, 120);
+    $uri = (string) $this->requests[0]['request']->getUri();
+    $this->assertStringContainsString('forecast_days=6', $uri);
   }
 
   /**

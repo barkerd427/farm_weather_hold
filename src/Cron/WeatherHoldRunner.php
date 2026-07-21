@@ -180,6 +180,13 @@ final class WeatherHoldRunner {
         // Cap reached: leave the log due and let the human decide.
         continue;
       }
+      if (!$this->canRecordWeatherHoldData($log)) {
+        // Foreign non-JSON data means defer_count can never persist, which
+        // would defeat the cap and re-append the note every run. Leave the
+        // log entirely untouched — it stays due for the human, and rule 1
+        // can still act on it terminally once it comes due.
+        continue;
+      }
       $newTimestamp = $this->deferCalculator->deferredTimestamp(
         (int) $log->get('timestamp')->value,
         $forecast->rainEnd,
@@ -253,29 +260,50 @@ final class WeatherHoldRunner {
   }
 
   /**
+   * Whether the log's data field can record a weather_hold block.
+   *
+   * True when it's empty/NULL, or already a JSON object. Foreign non-JSON
+   * data (a non-JSON blob or a bare JSON array/scalar) cannot.
+   */
+  private function canRecordWeatherHoldData(object $log): bool {
+    $raw = $log->get('data')->value;
+    if ($raw === NULL || $raw === '') {
+      return TRUE;
+    }
+    // Decode without assoc first: json_decode($raw, TRUE) cannot tell a
+    // JSON array ("[1,2,3]") from a JSON object ("{}"), and a scalar
+    // ("5", "true") is not JSON we should merge into either. Only a real
+    // JSON object is safe to treat as this log's data map.
+    return is_object(json_decode($raw));
+  }
+
+  /**
    * Merges a weather_hold block into the log's data JSON.
    *
    * Never destroys non-JSON data another module may have stored: in that
-   * case data is left untouched and a warning is logged (the note still
-   * records the action).
+   * case data is left untouched, a warning is logged, and FALSE is
+   * returned (the note still records the action for rule 1's terminal
+   * skip; rule 2 gates on this return value before touching the log at
+   * all — see canRecordWeatherHoldData()).
+   *
+   * @return bool
+   *   TRUE when the weather_hold block was written; FALSE when the data
+   *   field held non-object data and was left untouched.
    */
-  private function mergeWeatherHoldData(object $log, array $block): void {
+  private function mergeWeatherHoldData(object $log, array $block): bool {
     $raw = $log->get('data')->value;
     $data = [];
     if ($raw !== NULL && $raw !== '') {
-      // Decode without assoc first: json_decode($raw, TRUE) cannot tell a
-      // JSON array ("[1,2,3]") from a JSON object ("{}"), and a scalar
-      // ("5", "true") is not JSON we should merge into either. Only a real
-      // JSON object is safe to treat as this log's data map.
       if (!is_object(json_decode($raw))) {
         $this->loggerFactory->get('farm_weather_hold')
           ->warning('Log @id data field is not a JSON object; leaving it untouched.', ['@id' => $log->id()]);
-        return;
+        return FALSE;
       }
       $data = json_decode($raw, TRUE);
     }
     $data['weather_hold'] = $block + ($data['weather_hold'] ?? []);
     $log->set('data', json_encode($data, JSON_PRESERVE_ZERO_FRACTION));
+    return TRUE;
   }
 
 }

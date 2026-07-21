@@ -6,7 +6,9 @@ namespace Drupal\farm_weather_hold;
 
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\GuzzleException;
 
 /**
  * Open-Meteo precipitation source (no API key).
@@ -25,6 +27,7 @@ final class OpenMeteoWeatherProvider implements WeatherProviderInterface {
     private readonly ClientInterface $httpClient,
     private readonly CacheBackendInterface $cache,
     private readonly TimeInterface $time,
+    private readonly LoggerChannelFactoryInterface $loggerFactory,
   ) {}
 
   /**
@@ -46,9 +49,13 @@ final class OpenMeteoWeatherProvider implements WeatherProviderInterface {
    * {@inheritdoc}
    */
   public function rainForecast(FarmCoordinates $coords, int $hours): RainForecast {
+    // Open-Meteo caps forecast_days at 16; scale it to the requested
+    // horizon (plus a day of margin) instead of hardcoding 72 h, so a
+    // lookahead_hours beyond 72 doesn't silently truncate the forecast.
+    $forecastDays = min(16, (int) ceil($hours / 24) + 1);
     $data = $this->fetch($coords, [
       'hourly' => 'precipitation,precipitation_probability',
-      'forecast_days' => 3,
+      'forecast_days' => $forecastDays,
     ]);
     $tz = new \DateTimeZone($coords->timezone);
     $now = (new \DateTimeImmutable('@' . $this->time->getRequestTime()))->setTimezone($tz);
@@ -77,13 +84,19 @@ final class OpenMeteoWeatherProvider implements WeatherProviderInterface {
   /**
    * Fetches (or returns cached) JSON from Open-Meteo.
    *
+   * Runs inside hook_cron, so a hung or rate-limited endpoint must never
+   * stall cron: failures are logged and an empty array is returned instead
+   * of propagating. The trailing/forecast callers' `?? []` / `?? 0.0`
+   * guards make an empty result safe (no skips or defers happen). Failures
+   * are deliberately NOT cached, so the next cron tick retries.
+   *
    * @param \Drupal\farm_weather_hold\FarmCoordinates $coords
    *   The farm coordinates.
    * @param array $params
    *   Endpoint-specific query parameters.
    *
    * @return array
-   *   The decoded response body.
+   *   The decoded response body, or [] on failure.
    */
   private function fetch(FarmCoordinates $coords, array $params): array {
     $query = $params + [
@@ -97,10 +110,21 @@ final class OpenMeteoWeatherProvider implements WeatherProviderInterface {
     if ($cached = $this->cache->get($cid)) {
       return $cached->data;
     }
-    $response = $this->httpClient->request('GET', self::BASE_URL, ['query' => $query]);
-    $data = json_decode((string) $response->getBody(), TRUE);
-    if (!is_array($data)) {
-      throw new \RuntimeException('Open-Meteo returned a non-JSON response.');
+    try {
+      $response = $this->httpClient->request('GET', self::BASE_URL, [
+        'query' => $query,
+        'timeout' => 10,
+        'connect_timeout' => 5,
+      ]);
+      $data = json_decode((string) $response->getBody(), TRUE);
+      if (!is_array($data)) {
+        throw new \RuntimeException('Open-Meteo returned a non-JSON response.');
+      }
+    }
+    catch (GuzzleException | \RuntimeException $e) {
+      $this->loggerFactory->get('farm_weather_hold')
+        ->warning('Open-Meteo request failed: @message', ['@message' => $e->getMessage()]);
+      return [];
     }
     $this->cache->set($cid, $data, $this->time->getRequestTime() + self::CACHE_TTL);
     return $data;

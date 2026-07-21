@@ -165,6 +165,28 @@ class ForecastDeferTest extends FarmWeatherHoldKernelTestBase {
   }
 
   /**
+   * A log with foreign non-JSON data is left entirely alone.
+   *
+   * No bookkeeping can be recorded, so the timestamp must not move and no
+   * note appended — otherwise the defer cap never triggers and the note
+   * re-appends forever.
+   */
+  public function testNonJsonDataLeavesLogUntouched(): void {
+    $log = $this->createLog([
+      'timestamp' => self::NOW + 86400,
+      'status' => 'pending',
+      'category' => [$this->irrigationTerm->id()],
+      'data' => 'legacy opaque blob',
+    ]);
+    $this->runWithForecast($this->wetForecast());
+    $log = $this->reload($log);
+    $this->assertSame('pending', $log->get('status')->value);
+    $this->assertSame(self::NOW + 86400, (int) $log->get('timestamp')->value);
+    $this->assertStringNotContainsString('Deferred', (string) $log->get('notes')->value);
+    $this->assertSame('legacy opaque blob', $log->get('data')->value);
+  }
+
+  /**
    * Disabling rule 2 leaves coming-due logs alone.
    */
   public function testRuleDisabled(): void {
