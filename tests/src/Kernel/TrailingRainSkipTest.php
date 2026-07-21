@@ -170,6 +170,23 @@ class TrailingRainSkipTest extends FarmWeatherHoldKernelTestBase {
   }
 
   /**
+   * A bare JSON array is not a JSON object; it must be left alone too.
+   */
+  public function testJsonArrayDataLeftAlone(): void {
+    $log = $this->createLog([
+      'timestamp' => self::NOW - 600,
+      'status' => 'pending',
+      'category' => [$this->irrigationTerm->id()],
+      'data' => '[1,2,3]',
+    ]);
+    $this->runWithRain(2.0);
+    $log = $this->reload($log);
+    $this->assertSame('done', $log->get('status')->value);
+    $this->assertStringContainsString('Auto-skipped', (string) $log->get('notes')->value);
+    $this->assertSame('[1,2,3]', $log->get('data')->value);
+  }
+
+  /**
    * Disabling rule 1 leaves due logs alone.
    */
   public function testRuleDisabled(): void {

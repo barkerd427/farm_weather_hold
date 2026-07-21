@@ -185,13 +185,16 @@ final class WeatherHoldRunner {
     $raw = $log->get('data')->value;
     $data = [];
     if ($raw !== NULL && $raw !== '') {
-      $decoded = json_decode($raw, TRUE);
-      if (!is_array($decoded)) {
+      // Decode without assoc first: json_decode($raw, TRUE) cannot tell a
+      // JSON array ("[1,2,3]") from a JSON object ("{}"), and a scalar
+      // ("5", "true") is not JSON we should merge into either. Only a real
+      // JSON object is safe to treat as this log's data map.
+      if (!is_object(json_decode($raw))) {
         $this->loggerFactory->get('farm_weather_hold')
-          ->warning('Log @id data field is not JSON; leaving it untouched.', ['@id' => $log->id()]);
+          ->warning('Log @id data field is not a JSON object; leaving it untouched.', ['@id' => $log->id()]);
         return;
       }
-      $data = $decoded;
+      $data = json_decode($raw, TRUE);
     }
     $data['weather_hold'] = $block + ($data['weather_hold'] ?? []);
     $log->set('data', json_encode($data, JSON_PRESERVE_ZERO_FRACTION));
